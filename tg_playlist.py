@@ -1,7 +1,6 @@
 from flask import Flask, Response
 from pyrogram import Client
 import asyncio
-import threading
 
 API_ID = 33433044
 API_HASH = "004b07359a56a200099594631dd125d7"
@@ -10,8 +9,6 @@ CHANNEL_ID = -1003791091909
 SERVER_IP = "192.168.20.50"  # your phone IP
 
 app = Flask(__name__)
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
 
 tg = Client(
     "tgstream",
@@ -20,12 +17,9 @@ tg = Client(
     bot_token=BOT_TOKEN
 )
 
-# Start Pyrogram once
-loop.run_until_complete(tg.start())
-
 @app.route("/playlist.m3u")
 def playlist():
-    async def build_playlist():
+    async def build():
         m3u = "#EXTM3U\n"
         async for msg in tg.get_chat_history(CHANNEL_ID, limit=100):
             if msg.video or msg.document:
@@ -38,7 +32,7 @@ def playlist():
                 m3u += f"http://{SERVER_IP}:8080/stream/{msg.id}\n"
         return m3u
 
-    return loop.run_until_complete(build_playlist())
+    return asyncio.run(build())
 
 @app.route("/stream/<int:msg_id>")
 def stream(msg_id):
@@ -48,9 +42,10 @@ def stream(msg_id):
             yield chunk
 
     return Response(
-        loop.run_until_complete(generate()),
+        asyncio.run(generate()),
         content_type="application/octet-stream"
     )
 
 if __name__ == "__main__":
+    tg.start()  # start normally
     app.run(host="0.0.0.0", port=8080)
