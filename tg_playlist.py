@@ -2,11 +2,11 @@ from flask import Flask, Response
 from pyrogram import Client
 import asyncio
 
-API_ID = 123456
-API_HASH = "YOUR_API_HASH"
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+API_ID = 33433044
+API_HASH = "004b07359a56a200099594631dd125d7"
+BOT_TOKEN = "7905710256:AAGBSDX83F4ftuOKgSBxj981k0ET8N0eG5M"
 
-CHANNEL_ID = -1001234567890  # your log channel id
+CHANNEL_ID = -1003791091909  # your log channel id
 
 app = Flask(__name__)
 tg = Client("tgstream", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
