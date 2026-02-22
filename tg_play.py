@@ -69,14 +69,13 @@ async def playlist():
         async for msg in tg.get_chat_history(CHANNEL_ID, limit=200):
             if msg.video or msg.document:
                 name = get_media_name(msg)
-                
-                # FIX: URL-encode the name and append it to the path for TiviMate
                 safe_name = quote(name)
                 stream_url = f"http://{SERVER_IP}:{SERVER_PORT}/stream/{msg.id}/{safe_name}"
                 
-                lines.append(f"#EXTINF:-1,{name}")
+                # FIX: Add the tvg-type and group-title tags here!
+                lines.append(f'#EXTINF:-1 tvg-type="movies" group-title="Telegram VOD",{name}')
                 lines.append(stream_url)
-                
+
     except Exception as e:
         logger.error(f"Failed to generate playlist: {e}")
         return Response("Internal Server Error fetching playlist", status=500)
