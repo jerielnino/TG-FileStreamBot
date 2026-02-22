@@ -45,6 +45,11 @@ async def startup():
     """Starts the Pyrogram client safely within the Quart event loop."""
     logger.info("Starting Telegram client...")
     await tg.start()
+    # --- ADD THIS TEMPORARILY ---
+    logger.info("Fetching dialogs to update peer cache...")
+    async for dialog in tg.get_dialogs():
+        pass 
+    # ----------------------------
     logger.info("Telegram client started successfully.")
 
 @app.after_serving
