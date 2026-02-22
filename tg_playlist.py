@@ -11,10 +11,9 @@ SERVER_IP = "192.168.20.50"  # your phone IP
 app = Flask(__name__)
 
 tg = Client(
-    "tgstream",
+    "myaccount",
     api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+    api_hash=API_HASH
 )
 
 @app.route("/playlist.m3u")
@@ -47,5 +46,5 @@ def stream(msg_id):
     )
 
 if __name__ == "__main__":
-    tg.start()  # start normally
+    tg.start()  # will ask for phone login once
     app.run(host="0.0.0.0", port=8080)
