@@ -18,14 +18,23 @@ tg = Client("myaccount", api_id=API_ID, api_hash=API_HASH)
 tg.start()
 print("Telegram client started successfully")
 
-
 @app.route("/playlist.m3u")
 def playlist():
 
     async def build():
         m3u = "#EXTM3U\n"
 
-        async for msg in tg.get_chat_history(CHANNEL_ID, limit=200):
+        # 🔥 find chat object from dialogs (guaranteed valid)
+        target_chat = None
+        async for dialog in tg.get_dialogs():
+            if dialog.chat.id == CHANNEL_ID:
+                target_chat = dialog.chat
+                break
+
+        if not target_chat:
+            return "Channel not found in dialogs"
+
+        async for msg in tg.get_chat_history(target_chat.id, limit=200):
             if msg.video or msg.document:
 
                 filename = None
@@ -49,7 +58,17 @@ def playlist():
 def stream(msg_id):
 
     async def generate():
-        msg = await tg.get_messages(CHANNEL_ID, msg_id)
+
+        target_chat = None
+        async for dialog in tg.get_dialogs():
+            if dialog.chat.id == CHANNEL_ID:
+                target_chat = dialog.chat
+                break
+
+        if not target_chat:
+            return
+
+        msg = await tg.get_messages(target_chat.id, msg_id)
 
         async for chunk in tg.stream_media(msg):
             yield chunk
@@ -58,7 +77,6 @@ def stream(msg_id):
         asyncio.run(generate()),
         content_type="application/octet-stream"
     )
-
-
+    
 if __name__ == "__main__":
     app.run(host=SERVER_HOST, port=SERVER_PORT)
