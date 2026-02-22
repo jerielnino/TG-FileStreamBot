@@ -85,11 +85,10 @@ async def playlist():
 
 
 # FIX: Updated route to accept the filename at the end
-@app.route("/stream/<int:msg_id>/<filename>")
+@app.route("/stream/<int:msg_id>/<filename>", methods=["GET", "HEAD"])
 async def stream(msg_id, filename):
     try:
         msg = await tg.get_messages(CHANNEL_ID, msg_id)
-        
         if not msg or not (msg.video or msg.document):
             abort(404, description="Media not found")
 
@@ -108,39 +107,55 @@ async def stream(msg_id, filename):
                     end = int(match.group(2))
                     
         length = end - start + 1
-        
+        status_code = 206 if range_header else 200
+
+        # FIX 1: Answer ExoPlayer's 'HEAD' probe instantly without downloading video
+        if request.method == "HEAD":
+            response = Response(status=status_code, content_type=mime_type)
+            response.headers.add("Accept-Ranges", "bytes")
+            response.headers.add("Content-Length", str(length))
+            if status_code == 206:
+                response.headers.add("Content-Range", f"bytes {start}-{end}/{file_size}")
+            return response
+
+        # Actual video generation for GET requests
         async def generate():
             chunk_size = 1048576 
             offset_chunks = start // chunk_size
             skip_bytes = start % chunk_size
             bytes_yielded = 0
             
-            async for chunk in tg.stream_media(msg, offset=offset_chunks):
-                if skip_bytes > 0:
-                    chunk = chunk[skip_bytes:]
-                    skip_bytes = 0
+            try:
+                async for chunk in tg.stream_media(msg, offset=offset_chunks):
+                    if skip_bytes > 0:
+                        chunk = chunk[skip_bytes:]
+                        skip_bytes = 0
+                        
+                    if bytes_yielded + len(chunk) > length:
+                        chunk = chunk[:length - bytes_yielded]
+                        
+                    yield chunk
+                    bytes_yielded += len(chunk)
                     
-                if bytes_yielded + len(chunk) > length:
-                    chunk = chunk[:length - bytes_yielded]
-                    
-                yield chunk
-                bytes_yielded += len(chunk)
-                
-                if bytes_yielded >= length:
-                    break
+                    if bytes_yielded >= length:
+                        break
+            except Exception:
+                # Silently catch when TiviMate skips ahead and drops the old connection
+                pass
 
-        status_code = 206 if range_header else 200
         response = Response(generate(), status=status_code, content_type=mime_type)
         response.headers.add("Accept-Ranges", "bytes")
-        response.headers.add("Content-Range", f"bytes {start}-{end}/{file_size}")
         response.headers.add("Content-Length", str(length))
         
+        # FIX 2: Only send Content-Range on 206 Partial Content, never on 200 OK
+        if status_code == 206:
+            response.headers.add("Content-Range", f"bytes {start}-{end}/{file_size}")
+            
         return response
         
     except Exception as e:
         logger.error(f"Failed to stream message {msg_id}: {e}")
         abort(500, description="Internal Server Error")
-
 # ==========================================
 # MAIN RUNNER
 # ==========================================
