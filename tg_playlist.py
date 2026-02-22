@@ -12,28 +12,23 @@ SERVER_IP = "192.168.20.50"  # your phone IP
 
 app = Flask(__name__)
 
-# Create event loop manually
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
 tg = Client("myaccount", api_id=API_ID, api_hash=API_HASH)
 
-# Start telegram client once
-loop.run_until_complete(tg.start())
+# Start telegram client (NO asyncio here)
+tg.start()
 print("Telegram client started successfully")
 
-# ================= PLAYLIST =================
+
 @app.route("/playlist.m3u")
 def playlist():
 
-    async def build_playlist():
+    async def build():
         m3u = "#EXTM3U\n"
 
         async for msg in tg.get_chat_history(CHANNEL_ID, limit=200):
             if msg.video or msg.document:
 
                 filename = None
-
                 if msg.video:
                     filename = msg.video.file_name
                 elif msg.document:
@@ -47,28 +42,23 @@ def playlist():
 
         return m3u
 
-    return loop.run_until_complete(build_playlist())
+    return asyncio.run(build())
 
 
-# ================= STREAM =================
 @app.route("/stream/<int:msg_id>")
 def stream(msg_id):
 
     async def generate():
         msg = await tg.get_messages(CHANNEL_ID, msg_id)
 
-        if not msg:
-            return
-
         async for chunk in tg.stream_media(msg):
             yield chunk
 
     return Response(
-        loop.run_until_complete(generate()),
+        asyncio.run(generate()),
         content_type="application/octet-stream"
     )
 
 
-# ================= START SERVER =================
 if __name__ == "__main__":
     app.run(host=SERVER_HOST, port=SERVER_PORT)
