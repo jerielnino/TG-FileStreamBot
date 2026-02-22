@@ -1,47 +1,56 @@
 from flask import Flask, Response
 from pyrogram import Client
 import asyncio
+import threading
 
-API_ID = 33433044
-API_HASH = "004b07359a56a200099594631dd125d7"
-BOT_TOKEN = "7905710256:AAGBSDX83F4ftuOKgSBxj981k0ET8N0eG5M"
-
-CHANNEL_ID = -1003791091909  # your log channel id
+API_ID = 123456
+API_HASH = "YOUR_API_HASH"
+BOT_TOKEN = "YOUR_BOT_TOKEN"
+CHANNEL_ID = -1001234567890
+SERVER_IP = "192.168.1.45"  # your phone IP
 
 app = Flask(__name__)
-tg = Client("tgstream", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
-# Generate M3U playlist
+tg = Client(
+    "tgstream",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
+
+# Start Pyrogram once
+loop.run_until_complete(tg.start())
+
 @app.route("/playlist.m3u")
 def playlist():
     async def build_playlist():
-        async with tg:
-            m3u = "#EXTM3U\n"
-            async for msg in tg.get_chat_history(CHANNEL_ID, limit=100):
-                if msg.video or msg.document:
-                    if msg.video:
-                        title = msg.video.file_name or f"Video {msg.id}"
-                    else:
-                        title = msg.document.file_name or f"File {msg.id}"
+        m3u = "#EXTM3U\n"
+        async for msg in tg.get_chat_history(CHANNEL_ID, limit=100):
+            if msg.video or msg.document:
+                title = (
+                    msg.video.file_name if msg.video
+                    else msg.document.file_name
+                ) or f"File {msg.id}"
 
-                    m3u += f"#EXTINF:-1,{title}\n"
-                    m3u += f"http://{SERVER_IP}:8080/stream/{msg.id}\n"
-            return m3u
+                m3u += f"#EXTINF:-1,{title}\n"
+                m3u += f"http://{SERVER_IP}:8080/stream/{msg.id}\n"
+        return m3u
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     return loop.run_until_complete(build_playlist())
 
-# Stream by message ID
 @app.route("/stream/<int:msg_id>")
 def stream(msg_id):
     async def generate():
-        async with tg:
-            msg = await tg.get_messages(CHANNEL_ID, msg_id)
-            async for chunk in tg.stream_media(msg):
-                yield chunk
-    return Response(generate(), content_type="application/octet-stream")
+        msg = await tg.get_messages(CHANNEL_ID, msg_id)
+        async for chunk in tg.stream_media(msg):
+            yield chunk
+
+    return Response(
+        loop.run_until_complete(generate()),
+        content_type="application/octet-stream"
+    )
 
 if __name__ == "__main__":
-    SERVER_IP = "YOUR_PHONE_IP"
     app.run(host="0.0.0.0", port=8080)
