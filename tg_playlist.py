@@ -3,11 +3,11 @@ from pyrogram import Client
 import asyncio
 import threading
 
-API_ID = 123456
-API_HASH = "YOUR_API_HASH"
-BOT_TOKEN = "YOUR_BOT_TOKEN"
-CHANNEL_ID = -1001234567890
-SERVER_IP = "192.168.1.45"  # your phone IP
+API_ID = 33433044
+API_HASH = "004b07359a56a200099594631dd125d7"
+BOT_TOKEN = "7905710256:AAGBSDX83F4ftuOKgSBxj981k0ET8N0eG5M"
+CHANNEL_ID = -1003791091909
+SERVER_IP = "192.168.20.50"  # your phone IP
 
 app = Flask(__name__)
 loop = asyncio.new_event_loop()
